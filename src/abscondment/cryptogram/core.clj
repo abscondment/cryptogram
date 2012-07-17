@@ -1,4 +1,4 @@
-;; Copyright (C) Brendan Ribera 2009
+;; Copyright (C) Brendan Ribera 2009-2012
 (ns abscondment.cryptogram.core
   (:require [clojure.string :as string]))
 

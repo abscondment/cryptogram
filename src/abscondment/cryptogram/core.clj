@@ -2,16 +2,6 @@
 (ns abscondment.cryptogram.core
   (:require [clojure.string :as string]))
 
-
-(comment
-  ;; Example Usage:
-  (time
-   (println
-    (let [code "Guvf vf n grfg." ;; "This is a test." -> ROT13
-          solution (search {} (candidates-for (tokenize code)))]
-      (apply str (word-from-rules code solution))))))
-
-
 (defn tokenize
   "Simple tokenization of a block of text."
   [text]

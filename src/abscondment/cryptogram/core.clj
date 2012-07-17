@@ -1,11 +1,12 @@
-;;; Copyright (C) Brendan Ribera 2009
-(ns abscondment.cryptogram
-  (:use [clojure.contrib duck-streams str-utils]))
+;; Copyright (C) Brendan Ribera 2009
+(ns abscondment.cryptogram.core
+  (:require [clojure.string :as string]))
 
 (defn tokenize
   "Simple tokenization of a block of text."
   [text]
-  (re-split #"[\s]+" (re-gsub #"[^a-z\s]+" "" (.toLowerCase text))))
+  (string/split (string/replace (.toLowerCase text) #"[^a-z\s]+" "")
+                #"[\s]+"))
 
 (defn base-form
   "Compute the base form of a given word. E.g. 'seas' and 'that' become 'ABCA'."
@@ -30,10 +31,10 @@
   "Return a list of pairs: an encrypted word and a set of candidate decrypted words."
   [coll]
   (let [coll (distinct coll)
-        sizes (apply hash-set (map count coll))
+        sizes (set (map count coll))
         bf-map
         (loop [accepted (transient {})
-               remaining (tokenize (slurp "/usr/share/dict/words"))]
+               remaining (tokenize (slurp "/usr/share/dict/american-english"))]
           (if (empty? remaining)
             (persistent! accepted)
             (let [[check & next-remaining] remaining
@@ -55,7 +56,7 @@
 (defn update-rules
   "Given an existing set of rules and a new decryption, return updated rules."
   [rules encrypted decrypted]
-  (merge rules (apply hash-map (interleave encrypted decrypted))))
+  (reduce #(apply assoc %1 %2) rules (partition 2 (interleave encrypted decrypted))))
 
 (defn propagate
   "Apply a set of rules to a candidate list, returning the new candidate list or nil if an inconsistency is encountered. If any candidate is confirmed as thet only choice, also propagate that choice."
@@ -63,7 +64,7 @@
   (let [candidate-pairs
         (map
          (fn [coll]
-           ;;; For a given word, eliminate candidates that no longer match our rules.
+           ;; For a given word, eliminate candidates that no longer match our rules.
            (let [encrypted (first coll)
                  candidates (last coll)
                  new-bf-map (merge (base-form encrypted) rules)
@@ -80,21 +81,22 @@
                                           (vals rules))))))
                candidates))))
          candidate-pairs)]
-    ;;; Now that we've eliminated candidates, check for inconsistency.
+    ;; Now that we've eliminated candidates, check for inconsistency.
     (if (some #(= 0 (count (last %))) candidate-pairs)
       nil
       (let [solved-words (filter #(= 1 (count (last %))) candidate-pairs)]
         (if (or (not candidate-pairs) (empty? solved-words))
-          ;;; If we had no inconsistency and no newly solved words, return.
+          ;; If we had no inconsistency and no newly solved words, return.
           {:rules rules :candidates candidate-pairs}
-          ;;; Otherwise, create new rules for the new solved words and propagate them.
+          ;; Otherwise, create new rules for the new solved words and propagate them.
           (let [new-rules (reduce
                            merge
                            rules
                            (map #(let [[encrypted [[decrypted _]]] %]
-                                   (apply hash-map (interleave encrypted decrypted)))
+                                   (reduce (fn [a b] (apply assoc a b)) {}
+                                           (partition 2 (interleave encrypted decrypted))))
                                 solved-words))]
-            ;;; Make sure the new rules are actually different.
+            ;; Make sure the new rules are actually different.
             (if (= rules new-rules)
               {:rules rules :candidates candidate-pairs}
               (recur new-rules candidate-pairs))))))))
@@ -102,32 +104,33 @@
 (defn search
   "Given rules and candidates, perform a depth-first search of potential word decryptions until we find a valid solution."
   [rules candidates]
-    (let [candidate-counts (map #(-> % rest first count) candidates)]
-      (cond
-       ;;; Are we in an inconsistent state?
-       (or (not candidates) (empty? candidates) (some #(= 0 %) candidate-counts)) nil
-       ;;; Are we in a solved state?
-       (every? #(= 1 %) candidate-counts)
-       rules
-       ;;; Keep searching.
-       true
-       (let [candidate (first (sort-by
-                               #(-> % rest first count)
-                               (filter
-                                #(not (= 1 (-> % rest first count)))
-                                candidates)))
-             encrypted (first candidate)]
-         (first
-          (filter
-           #(and %)
-           (map #(let [result (propagate (update-rules rules encrypted (first %))
-                                         candidates)]
-                   (if result (search (result :rules) (result :candidates))))
-                (fnext candidate))))))))
+  (let [candidate-counts (map #(-> % rest first count) candidates)]
+    (cond
+     ;; Are we in an inconsistent state?
+     (or (not candidates) (empty? candidates) (some #(= 0 %) candidate-counts)) nil
+     ;; Are we in a solved state?
+     (every? #(= 1 %) candidate-counts)
+     rules
+     ;; Keep searching.
+     true
+     (let [candidate (first (sort-by
+                             #(-> % rest first count)
+                             (filter
+                              #(not (= 1 (-> % rest first count)))
+                              candidates)))
+           encrypted (first candidate)]
+       (first
+        (filter
+         #(and %)
+         (map #(let [new-rules (update-rules rules encrypted (first %))
+                     result (propagate new-rules candidates)]
+                 (if result (search (result :rules) (result :candidates))))
+              (fnext candidate))))))))
 
-(time
- (println
-  (let [code "jevgvat n obbx vf n ybat, rkunhfgvat fgehttyr, yvxr n ybat obhg bs fbzr cnvashy vyyarff. bar jbhyq arire haqregnxr fhpu n guvat vs bar jrer abg qevira ol fbzr qrzba jubz bar pna arvgure erfvfg abe haqrefgnaq. (trbetr bejryy)"
-            ;"Writing a book is a long, exhausting struggle, like a long bout of some painful illness. One would never undertake such a thing if one were not driven by some demon whom one can neither resist nor understand. (George Orwell)"
-        solution (search {} (candidates-for (tokenize code)))]
-    (apply str (word-from-rules code solution)))))
+(comment
+  (time
+   (println
+    (let [code "jevgvat n obbx vf n ybat, rkunhfgvat fgehttyr, yvxr n ybat obhg bs fbzr cnvashy vyyarff. bar jbhyq arire haqregnxr fhpu n guvat vs bar jrer abg qevira ol fbzr qrzba jubz bar pna arvgure erfvfg abe haqrefgnaq. (trbetr bejryy)"
+                                        ;"Writing a book is a long, exhausting struggle, like a long bout of some painful illness. One would never undertake such a thing if one were not driven by some demon whom one can neither resist nor understand. (George Orwell)"
+          solution (search {} (candidates-for (tokenize code)))]
+      (apply str (word-from-rules code solution))))))

@@ -1,5 +1,13 @@
 # Cryptogram
 
+## What
+
+Using a local word list, generates and searches the cryptogram solution space.
+
+### Future Work
+
+ * Use word frequency to determine the order in which candidate words are tested. This will let us return the most likely solution when there are multiple solutions, rather than randomly picking the first one.
+
 ## Usage
 
 ```

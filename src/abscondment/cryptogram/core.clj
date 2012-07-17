@@ -2,6 +2,16 @@
 (ns abscondment.cryptogram.core
   (:require [clojure.string :as string]))
 
+
+(comment
+  ;; Example Usage:
+  (time
+   (println
+    (let [code "Guvf vf n grfg." ;; "This is a test." -> ROT13
+          solution (search {} (candidates-for (tokenize code)))]
+      (apply str (word-from-rules code solution))))))
+
+
 (defn tokenize
   "Simple tokenization of a block of text."
   [text]
@@ -126,11 +136,3 @@
                      result (propagate new-rules candidates)]
                  (if result (search (result :rules) (result :candidates))))
               (fnext candidate))))))))
-
-(comment
-  (time
-   (println
-    (let [code "jevgvat n obbx vf n ybat, rkunhfgvat fgehttyr, yvxr n ybat obhg bs fbzr cnvashy vyyarff. bar jbhyq arire haqregnxr fhpu n guvat vs bar jrer abg qevira ol fbzr qrzba jubz bar pna arvgure erfvfg abe haqrefgnaq. (trbetr bejryy)"
-                                        ;"Writing a book is a long, exhausting struggle, like a long bout of some painful illness. One would never undertake such a thing if one were not driven by some demon whom one can neither resist nor understand. (George Orwell)"
-          solution (search {} (candidates-for (tokenize code)))]
-      (apply str (word-from-rules code solution))))))

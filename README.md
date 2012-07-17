@@ -3,12 +3,15 @@
 ## Usage
 
 ```
-;; Example Usage:
+abscondment.cryptogram.core> ;; Example Usage:
 (time
  (println
-  (let [code "Guvf vf n grfg." ;; "This is a test." in ROT13
-        solution (search {} (candidates-for (tokenize code)))]
-    (apply str (word-from-rules code solution))))))
+  (let [code (.toLowerCase "Gur Puevfgvna vqrny unf abg orra gevrq naq sbhaq jnagvat; vg unf orra sbhaq qvssvphyg naq yrsg hagevrq.\n-Purfgregba")
+       solution (search {} (candidates-for (tokenize code)))]
+       (->> solution (word-from-rules code) (apply str)))))
+the christian ideal has not been tried and found wanting; it has been found difficult and left untried.
+-chesterton
+"Elapsed time: 1417.705818 msecs"    
 ```
 
 ## License
